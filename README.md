@@ -3,7 +3,7 @@
 Se hace un revamp completo a la idea principal y se cambia solo para que sea una tienda de componentes. Ademas que se implementa todo lo relacionado a la Prueba Parcial 2 (:
 
 
-Una tienda online de componentes de PC hecha con React, Bootstrap y React Router. La hice para el ramo DSY1104 (Evaluación Parcial 2).
+Una tienda online de componentes de PC hecha con React, Bootstrap y React Router.
 
 Se puede navegar la tienda, agregar productos al carrito, comprar (con un pago simulado) y, si entras como administrador, manejar productos, categorías, usuarios y órdenes.
 
