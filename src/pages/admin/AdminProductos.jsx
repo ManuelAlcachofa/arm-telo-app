@@ -4,6 +4,7 @@ import CampoFormulario from '../../components/CampoFormulario.jsx';
 import EstadoVacio from '../../components/EstadoVacio.jsx';
 import { eliminar } from '../../data/db.js';
 import { useColeccion } from '../../data/useColeccion.js';
+import { mensajeDeError } from '../../services/api.js';
 import { formatoCLP } from '../../utils/formato.js';
 import { esCritico, precioFinal, stockSinDefinir, stockNumerico } from '../../utils/productos.js';
 
@@ -15,7 +16,9 @@ export default function AdminProductos() {
   const visibles = productos.filter((p) => `${p.nombre} ${p.marca ?? ''}`.toLowerCase().includes(texto.trim().toLowerCase()));
 
   const borrar = (producto) => {
-    if (window.confirm(`¿Eliminar "${producto.nombre}"? Esta acción no se puede deshacer.`)) eliminar('productos', producto.id);
+    if (window.confirm(`¿Eliminar "${producto.nombre}"? Esta acción no se puede deshacer.`)) {
+      eliminar('productos', producto.id).catch((error) => window.alert(mensajeDeError(error, 'No se pudo eliminar el producto.')));
+    }
   };
 
   return (

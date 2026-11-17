@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { mensajeDeError } from '../services/api.js';
 import { sinErrores, validarPassword, validarRequerido } from '../utils/validaciones.js';
 import Alerta from './Alerta.jsx';
 import Boton from './Boton.jsx';
@@ -19,13 +20,14 @@ export default function PerfilForm({ usuario, onGuardar }) {
   });
   const [errores, setErrores] = useState({});
   const [guardado, setGuardado] = useState(false);
+  const [aviso, setAviso] = useState('');
 
   const cambiar = (campo) => (e) => {
     setGuardado(false);
     setDatos((d) => ({ ...d, [campo]: e.target.value }));
   };
 
-  const enviar = (evento) => {
+  const enviar = async (evento) => {
     evento.preventDefault();
     const nuevos = {
       nombre: validarRequerido(datos.nombre, 'el nombre'),
@@ -35,7 +37,13 @@ export default function PerfilForm({ usuario, onGuardar }) {
     setErrores(nuevos);
     if (!sinErrores(nuevos)) return;
     const { nuevaPassword, ...resto } = datos;
-    onGuardar(nuevaPassword ? { ...resto, password: nuevaPassword } : resto);
+    setAviso('');
+    try {
+      await onGuardar(nuevaPassword ? { ...resto, password: nuevaPassword } : resto);
+    } catch (error) {
+      setAviso(mensajeDeError(error, 'No se pudieron guardar tus datos.'));
+      return;
+    }
     setDatos((d) => ({ ...d, nuevaPassword: '' }));
     setGuardado(true);
   };
@@ -43,6 +51,7 @@ export default function PerfilForm({ usuario, onGuardar }) {
   return (
     <form onSubmit={enviar} noValidate>
       <Alerta tipo="success" mensaje={guardado ? 'Tus datos se guardaron correctamente.' : ''} />
+      <Alerta mensaje={aviso} />
       <div className="row">
         <div className="col-md-6">
           <CampoFormulario id="nombre" etiqueta="Nombre" requerido valor={datos.nombre} onChange={cambiar('nombre')} error={errores.nombre} />

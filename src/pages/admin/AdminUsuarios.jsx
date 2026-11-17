@@ -3,13 +3,16 @@ import EstadoVacio from '../../components/EstadoVacio.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { eliminar } from '../../data/db.js';
 import { useColeccion } from '../../data/useColeccion.js';
+import { mensajeDeError } from '../../services/api.js';
 
 export default function AdminUsuarios() {
   const usuarios = useColeccion('usuarios');
   const { usuario: actual } = useAuth();
 
   const borrar = (u) => {
-    if (window.confirm(`¿Eliminar a ${u.nombre} ${u.apellidos}?`)) eliminar('usuarios', u.id);
+    if (window.confirm(`¿Eliminar a ${u.nombre} ${u.apellidos}?`)) {
+      eliminar('usuarios', u.id).catch((error) => window.alert(mensajeDeError(error, 'No se pudo eliminar el usuario.')));
+    }
   };
 
   return (

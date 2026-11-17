@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import Alerta from '../../components/Alerta.jsx';
 import Boton from '../../components/Boton.jsx';
 import CampoFormulario from '../../components/CampoFormulario.jsx';
 import EstadoVacio from '../../components/EstadoVacio.jsx';
 import { actualizar, crear, obtener } from '../../data/db.js';
+import { mensajeDeError } from '../../services/api.js';
 import { validarRequerido } from '../../utils/validaciones.js';
 
 const ICONOS = [
@@ -27,6 +29,7 @@ export default function AdminCategoriaForm() {
   const existente = id ? obtener('categorias', id) : null;
   const [datos, setDatos] = useState(existente ?? { nombre: '', descripcion: '', icono: 'bi-tag' });
   const [error, setError] = useState('');
+  const [aviso, setAviso] = useState('');
 
   if (id && !existente) {
     return (
@@ -38,14 +41,20 @@ export default function AdminCategoriaForm() {
     );
   }
 
-  const guardar = (evento) => {
+  const guardar = async (evento) => {
     evento.preventDefault();
     const mensaje = validarRequerido(datos.nombre, 'el nombre');
     setError(mensaje);
+    setAviso('');
     if (mensaje) return;
-    const registro = { nombre: datos.nombre.trim(), descripcion: datos.descripcion.trim(), icono: datos.icono };
-    if (existente) actualizar('categorias', existente.id, registro);
-    else crear('categorias', registro);
+    const registro = { nombre: datos.nombre.trim(), descripcion: (datos.descripcion ?? '').trim(), icono: datos.icono };
+    try {
+      if (existente) await actualizar('categorias', existente.id, registro);
+      else await crear('categorias', registro);
+    } catch (e) {
+      setAviso(mensajeDeError(e, 'No se pudo guardar la categoría.'));
+      return;
+    }
     navegar('/admin/categorias');
   };
 
@@ -55,6 +64,7 @@ export default function AdminCategoriaForm() {
         ← Volver a categorías
       </Link>
       <h1 className="h3 mt-2 mb-3">{existente ? 'Editar categoría' : 'Nueva categoría'}</h1>
+      <Alerta mensaje={aviso} />
       <form onSubmit={guardar} noValidate className="card p-3 p-md-4 contenedor-formulario ms-0">
         <CampoFormulario id="nombre" etiqueta="Nombre" requerido valor={datos.nombre} onChange={(e) => setDatos((d) => ({ ...d, nombre: e.target.value }))} error={error} />
         <CampoFormulario id="descripcion" etiqueta="Descripción" tipo="textarea" valor={datos.descripcion ?? ''} onChange={(e) => setDatos((d) => ({ ...d, descripcion: e.target.value }))} />

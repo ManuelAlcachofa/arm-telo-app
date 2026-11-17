@@ -4,6 +4,7 @@ import Alerta from '../../components/Alerta.jsx';
 import EstadoVacio from '../../components/EstadoVacio.jsx';
 import { eliminar } from '../../data/db.js';
 import { useColeccion } from '../../data/useColeccion.js';
+import { mensajeDeError } from '../../services/api.js';
 
 export default function AdminCategorias() {
   const categorias = useColeccion('categorias');
@@ -17,7 +18,9 @@ export default function AdminCategorias() {
       return;
     }
     setAviso('');
-    if (window.confirm(`¿Eliminar la categoría "${categoria.nombre}"?`)) eliminar('categorias', categoria.id);
+    if (window.confirm(`¿Eliminar la categoría "${categoria.nombre}"?`)) {
+      eliminar('categorias', categoria.id).catch((error) => setAviso(mensajeDeError(error, 'No se pudo eliminar la categoría.')));
+    }
   };
 
   return (

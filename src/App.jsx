@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
+import CargaDatos from './components/CargaDatos.jsx';
 import LayoutTienda from './components/LayoutTienda.jsx';
 import RutaProtegida from './components/RutaProtegida.jsx';
 import Blogs from './pages/Blogs.jsx';
@@ -33,6 +34,11 @@ import AdminReportes from './pages/admin/AdminReportes.jsx';
 import AdminUsuarioForm from './pages/admin/AdminUsuarioForm.jsx';
 import AdminUsuarios from './pages/admin/AdminUsuarios.jsx';
 
+/** Las páginas que muestran órdenes esperan a que lleguen desde orden-service. */
+function ConOrdenes({ children }) {
+  return <CargaDatos colecciones={['ordenes']}>{children}</CargaDatos>;
+}
+
 /** Mapa de rutas de la aplicación (tienda pública y panel de administración). */
 export default function App() {
   return (
@@ -46,8 +52,8 @@ export default function App() {
         <Route path="ofertas" element={<Ofertas />} />
         <Route path="carrito" element={<Carrito />} />
         <Route path="checkout" element={<Checkout />} />
-        <Route path="compra/exitosa/:id" element={<CompraExitosa />} />
-        <Route path="compra/error/:id" element={<CompraError />} />
+        <Route path="compra/exitosa/:id" element={<ConOrdenes><CompraExitosa /></ConOrdenes>} />
+        <Route path="compra/error/:id" element={<ConOrdenes><CompraError /></ConOrdenes>} />
         <Route path="login" element={<Login />} />
         <Route path="registro" element={<Registro />} />
         <Route path="nosotros" element={<Nosotros />} />
@@ -55,7 +61,7 @@ export default function App() {
         <Route path="blogs/:id" element={<DetalleBlog />} />
         <Route path="contacto" element={<Contacto />} />
         <Route element={<RutaProtegida />}>
-          <Route path="perfil" element={<Perfil />} />
+          <Route path="perfil" element={<ConOrdenes><Perfil /></ConOrdenes>} />
         </Route>
         <Route path="*" element={<NoEncontrada />} />
       </Route>

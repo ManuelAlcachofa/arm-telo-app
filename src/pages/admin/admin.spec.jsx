@@ -1,6 +1,6 @@
 import { fireEvent, screen, within } from '@testing-library/react';
-import { listar } from '../../data/db.js';
-import { crearProducto, limpiarTodo, renderizarConApp } from '../../test/ayudas.jsx';
+import { crearProducto, esperarQue, iniciarSesionComo, limpiarTodo, renderizarConApp } from '../../test/ayudas.jsx';
+import { productoEnServidor } from '../../test/servidorFalso.js';
 import App from '../../App.jsx';
 import AdminProductos from './AdminProductos.jsx';
 import { validarProducto } from './AdminProductoForm.jsx';
@@ -40,43 +40,48 @@ describe('Panel de administración', () => {
   });
 
   describe('<AdminProductos />', () => {
-    it('muestra un mensaje cuando todavía no hay productos', () => {
+    beforeEach(() => iniciarSesionComo('admin@armatelo.cl'));
+
+    it('muestra un mensaje cuando todavía no hay productos', async () => {
       renderizarConApp(<AdminProductos />);
-      expect(screen.getByText('Aún no hay productos')).toBeTruthy();
+      expect(await screen.findByText('Aún no hay productos')).toBeTruthy();
     });
 
-    it('elimina un producto después de confirmar', () => {
-      crearProducto({ nombre: 'Producto uno' });
+    it('elimina un producto en el backend después de confirmar', async () => {
+      const uno = crearProducto({ nombre: 'Producto uno' });
       crearProducto({ nombre: 'Producto dos' });
       const confirmar = spyOn(window, 'confirm').and.returnValue(true);
       renderizarConApp(<AdminProductos />);
 
-      const fila = screen.getByText('Producto uno').closest('tr');
+      const fila = (await screen.findByText('Producto uno')).closest('tr');
       fireEvent.click(within(fila).getByRole('button', { name: 'Eliminar' }));
 
       expect(confirmar).toHaveBeenCalled();
-      expect(listar('productos').map((p) => p.nombre)).toEqual(['Producto dos']);
+      await esperarQue(() => screen.queryByText('Producto uno') === null);
+      expect(productoEnServidor(uno.id)).toBeNull();
+      expect(screen.getByText('Producto dos')).toBeTruthy();
     });
 
-    it('no elimina nada si se cancela la confirmación', () => {
-      crearProducto({ nombre: 'Producto uno' });
+    it('no elimina nada si se cancela la confirmación', async () => {
+      const uno = crearProducto({ nombre: 'Producto uno' });
       spyOn(window, 'confirm').and.returnValue(false);
       renderizarConApp(<AdminProductos />);
-      fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
-      expect(listar('productos').length).toBe(1);
+      fireEvent.click(await screen.findByRole('button', { name: 'Eliminar' }));
+      expect(productoEnServidor(uno.id)).toBeTruthy();
+      expect(screen.getByText('Producto uno')).toBeTruthy();
     });
   });
 
   describe('protección de rutas', () => {
-    it('manda a iniciar sesión a quien no ha entrado', () => {
+    it('manda a iniciar sesión a quien no ha entrado', async () => {
       renderizarConApp(<App />, { ruta: '/admin' });
-      expect(screen.getByRole('heading', { name: 'Inicia sesión' })).toBeTruthy();
+      expect(await screen.findByRole('heading', { name: 'Inicia sesión' })).toBeTruthy();
     });
 
-    it('deja entrar al administrador', () => {
-      window.localStorage.setItem('armatelo:sesion', '1');
+    it('deja entrar al administrador', async () => {
+      iniciarSesionComo('admin@armatelo.cl');
       renderizarConApp(<App />, { ruta: '/admin' });
-      expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeTruthy();
+      expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeTruthy();
     });
   });
 });
