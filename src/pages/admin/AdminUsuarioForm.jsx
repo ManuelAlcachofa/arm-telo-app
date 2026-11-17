@@ -5,6 +5,7 @@ import Boton from '../../components/Boton.jsx';
 import CampoFormulario from '../../components/CampoFormulario.jsx';
 import EstadoVacio from '../../components/EstadoVacio.jsx';
 import { actualizar, crear, listar, obtener } from '../../data/db.js';
+import { mensajeDeError } from '../../services/api.js';
 import { sinErrores, validarEmail, validarPassword, validarRequerido } from '../../utils/validaciones.js';
 
 export function validarUsuario(d, { editando }) {
@@ -39,7 +40,7 @@ export default function AdminUsuarioForm() {
 
   const cambiar = (campo) => (e) => setDatos((d) => ({ ...d, [campo]: e.target.value }));
 
-  const guardar = (evento) => {
+  const guardar = async (evento) => {
     evento.preventDefault();
     const nuevos = validarUsuario(datos, { editando: Boolean(existente) });
     setErrores(nuevos);
@@ -55,8 +56,13 @@ export default function AdminUsuarioForm() {
 
     const registro = { nombre: datos.nombre.trim(), apellidos: datos.apellidos.trim(), correo, rol: datos.rol };
     if (datos.password) registro.password = datos.password;
-    if (existente) actualizar('usuarios', existente.id, registro);
-    else crear('usuarios', { telefono: '', region: '', comuna: '', calle: '', departamento: '', ...registro });
+    try {
+      if (existente) await actualizar('usuarios', existente.id, registro);
+      else await crear('usuarios', { telefono: '', region: '', comuna: '', calle: '', departamento: '', ...registro });
+    } catch (error) {
+      setAviso(mensajeDeError(error, 'No se pudo guardar el usuario.'));
+      return;
+    }
     navegar('/admin/usuarios');
   };
 

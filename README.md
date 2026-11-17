@@ -9,17 +9,24 @@ Se puede navegar la tienda, agregar productos al carrito, comprar (con un pago s
 
 ## Cómo abrirlo
 
-**Lo más fácil:** abre la carpeta `dist` y haz doble clic en `index.html`. No necesitas instalar nada.
+La tienda obtiene sus datos del **backend** (microservicios Spring Boot con MySQL), así que primero hay que levantarlo.
 
-**Para editar el código:**
-
-1. Instala [Node.js](https://nodejs.org) (una sola vez).
-2. Abre la carpeta del proyecto en VS Code y, en la terminal, escribe:
+1. **Backend:** con Docker Desktop abierto, en la carpeta del backend ejecuta:
+   ```
+   docker compose up -d --build
+   ```
+   Queda disponible en `http://localhost:9090/api/v1` (API Gateway). Más detalles en el README del backend.
+2. **Frontend:** instala [Node.js](https://nodejs.org) (una sola vez) y, en la carpeta de este proyecto, ejecuta:
    ```
    npm install
    npm run dev
    ```
-3. Entra a la dirección que aparece (normalmente http://localhost:5173).
+3. Entra a http://localhost:5173.
+
+Si el backend no está levantado, la tienda muestra el mensaje *"No se pudo conectar con el servidor"* con un botón para reintentar.
+
+Para probar la versión compilada usa `npm run build` y luego `npm run preview` (http://localhost:4173).
+Abrir `dist/index.html` con doble clic ya no funciona, porque el navegador bloquea las llamadas al backend desde `file://` (CORS).
 
 Si estás en Windows y PowerShell te bloquea `npm`, ejecuta esto una vez y vuelve a intentar:
 ```
@@ -29,18 +36,25 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 Otros comandos útiles:
 
 - `npm run build` vuelve a crear la carpeta `dist` con la versión final.
-- `npm test` corre las pruebas (necesita Google Chrome instalado).
+- `npm test` corre las pruebas con Karma (necesita Google Chrome instalado).
+- `npm run test:vitest` corre las mismas pruebas con Vitest.
 
-## Entrar como administrador
+- `npm run test:integracion` prueba el frontend **contra el backend real** (debe estar levantado): catálogo, login, permisos 401/403, CRUD de productos, checkout de invitado y de cliente, pago rechazado y aprobado, descuento de stock, contacto y reportes. Crea datos de prueba en la base.
 
-- Correo: `admin@armatelo.cl`
-- Contraseña: `Admin1234`
+Las pruebas de `npm test` y `npm run test:vitest` no necesitan el backend: usan un backend falso en memoria (`src/test/servidorFalso.js`) con las mismas rutas y reglas.
 
-Inicia sesión, haz clic en tu nombre arriba a la derecha y elige **Panel de administración**.
+## Cuentas de prueba
+
+| Rol | Correo | Contraseña |
+|---|---|---|
+| Administrador | `admin@armatelo.cl` | `Admin1234` |
+| Cliente | `cliente@armatelo.cl` | `Cliente1234` |
+
+Inicia sesión como administrador, haz clic en tu nombre arriba a la derecha y elige **Panel de administración**.
 
 ## Agregar tus productos
 
-La tienda parte sin productos. Para sumarlos:
+El backend trae 9 productos de ejemplo. Para sumar más:
 
 1. Entra al panel de administración.
 2. Ve a **Productos > Nuevo producto** y llena el formulario.
@@ -51,9 +65,11 @@ Para las imágenes pega la URL de la foto. Se ven mejor las cuadradas, de 600×6
 
 ## Cosas que conviene saber
 
-- No hay servidor: todo se guarda en el navegador (`localStorage`), incluidas las contraseñas. Sirve para el ramo, no para una tienda real.
-- El pago es de mentira: en el checkout tú eliges si queda aprobado o rechazado.
-- Si quieres empezar de cero, abre la consola del navegador (F12), escribe `localStorage.clear()` y recarga la página.
+- Los datos (productos, categorías, usuarios, órdenes y mensajes) se guardan en **MySQL** a través del backend. Las contraseñas se guardan cifradas (BCrypt).
+- La sesión usa un **token JWT**: al iniciar sesión se guarda en el navegador (`localStorage`, clave `armatelo:sesion`) y se envía en cada petición. Si vence, la tienda cierra la sesión.
+- El carrito sigue guardándose en el navegador hasta que se compra.
+- El pago es de mentira: en el checkout tú eliges si queda aprobado o rechazado. El backend vuelve a calcular los totales, valida el stock y lo descuenta al aprobar.
+- La URL del backend está en `src/services/api.js` (`http://localhost:9090/api/v1`).
 
 ## Dónde está cada cosa
 
@@ -61,8 +77,9 @@ Para las imágenes pega la URL de la foto. Se ven mejor las cuadradas, de 600×6
 src/
   components/   piezas reutilizables (botones, tarjetas, barra de navegación…)
   pages/        una página por vista; pages/admin/ es el panel de administración
-  context/      el carrito y la sesión del usuario
-  data/         la "base de datos" (db.js) y los datos iniciales (seed.js)
-  services/     la lógica de compras y del pago simulado
+  context/      el carrito y la sesión del usuario (login con JWT)
+  data/         db.js: caché de datos conectada al backend · adaptadores.js: formato API ↔ frontend
+  services/     api.js: cliente HTTP (axios) · compras.js: órdenes y pago
   utils/        validaciones, formato de precios y reglas de productos
+  test/         ayudas de pruebas y backend falso en memoria
 ```

@@ -9,6 +9,7 @@ import SelectorRegionComuna from '../components/SelectorRegionComuna.jsx';
 import TablaItems from '../components/TablaItems.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCarrito } from '../context/CarritoContext.jsx';
+import { mensajeDeError } from '../services/api.js';
 import { OPCIONES_ENTREGA, RESULTADOS_PAGO, calcularTotales, crearOrden, pagarOrden, productosSinStock } from '../services/compras.js';
 import { formatoCLP } from '../utils/formato.js';
 import { precioFinal, stockNumerico } from '../utils/productos.js';
@@ -75,7 +76,9 @@ export default function Checkout() {
     }
 
     setProcesando(true);
-    const orden = crearOrden({
+    let orden;
+    try {
+      orden = await crearOrden({
       cliente: { nombre: datos.nombre.trim(), apellidos: datos.apellidos.trim(), correo: datos.correo.trim() },
       direccion: despacho
         ? { calle: datos.calle.trim(), departamento: datos.departamento.trim(), region: datos.region, comuna: datos.comuna, indicaciones: datos.indicaciones.trim() }
@@ -83,7 +86,13 @@ export default function Checkout() {
       entregaId: datos.entrega,
       items,
       usuarioId: usuario?.id ?? null,
-    });
+      });
+    } catch (error) {
+      // El backend vuelve a validar los datos y el stock: si rechaza la orden se muestra su mensaje.
+      setProcesando(false);
+      setAviso(mensajeDeError(error, 'No pudimos crear tu orden. Intenta nuevamente.'));
+      return;
+    }
     const respuesta = await pagarOrden(orden.id, datos.resultado);
     if (respuesta.ok) {
       vaciar();

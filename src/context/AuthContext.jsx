@@ -1,76 +1,98 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { actualizar, crear, listar } from '../data/db.js';
-import { useColeccion } from '../data/useColeccion.js';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { desdeApi } from '../data/adaptadores.js';
+import { COLECCIONES_PRIVADAS, guardarEnCache, reiniciarDB } from '../data/db.js';
+import { EVENTO_SESION_EXPIRADA, api, guardarSesion, leerSesion, mensajeDeError } from '../services/api.js';
 
-const CLAVE_SESION = 'armatelo:sesion';
-
-function leerSesion() {
-  try {
-    return window.localStorage.getItem(CLAVE_SESION);
-  } catch {
-    return null;
-  }
-}
-
-function guardarSesion(id) {
-  try {
-    if (id === null) window.localStorage.removeItem(CLAVE_SESION);
-    else window.localStorage.setItem(CLAVE_SESION, String(id));
-  } catch {
-    // sin almacenamiento disponible
-  }
-}
-
+/**
+ * Sesión del usuario contra auth-service.
+ * El token JWT y los datos del usuario se guardan en localStorage ("armatelo:sesion"),
+ * así la sesión sobrevive a recargar la página.
+ */
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const usuarios = useColeccion('usuarios');
-  const [sesionId, setSesionId] = useState(leerSesion);
+  const [sesion, setSesion] = useState(leerSesion);
+  const usuario = sesion?.usuario ?? null;
 
-  const usuario = useMemo(
-    () => usuarios.find((u) => String(u.id) === String(sesionId)) ?? null,
-    [usuarios, sesionId],
-  );
-
-  const iniciarSesion = useCallback((correo, password) => {
-    const encontrado = listar('usuarios').find(
-      (u) => u.correo.toLowerCase() === String(correo).trim().toLowerCase() && u.password === password,
-    );
-    if (!encontrado) return { ok: false, error: 'Correo o contraseña incorrectos.' };
-    guardarSesion(encontrado.id);
-    setSesionId(String(encontrado.id));
-    return { ok: true, usuario: encontrado };
-  }, []);
-
-  const registrar = useCallback((datos) => {
-    const correo = String(datos.correo).trim().toLowerCase();
-    if (listar('usuarios').some((u) => u.correo.toLowerCase() === correo)) {
-      return { ok: false, error: 'Ya existe una cuenta con ese correo.' };
-    }
-    const nuevo = crear('usuarios', {
-      telefono: '',
-      region: '',
-      comuna: '',
-      calle: '',
-      departamento: '',
-      ...datos,
-      correo,
-      rol: 'cliente',
-    });
-    guardarSesion(nuevo.id);
-    setSesionId(String(nuevo.id));
-    return { ok: true, usuario: nuevo };
+  const abrirSesion = useCallback((respuesta) => {
+    const nueva = { token: respuesta.token, usuario: desdeApi.usuarios(respuesta.usuario) };
+    guardarSesion(nueva);
+    setSesion(nueva);
+    reiniciarDB(COLECCIONES_PRIVADAS); // órdenes y usuarios dependen de quién entró
+    return nueva.usuario;
   }, []);
 
   const cerrarSesion = useCallback(() => {
     guardarSesion(null);
-    setSesionId(null);
+    setSesion(null);
+    reiniciarDB(COLECCIONES_PRIVADAS);
   }, []);
 
-  const actualizarPerfil = useCallback((cambios) => {
-    if (!sesionId) return null;
-    return actualizar('usuarios', sesionId, cambios);
-  }, [sesionId]);
+  // Si el backend responde 401 (token vencido), se cierra la sesión también en la interfaz.
+  useEffect(() => {
+    const alExpirar = () => {
+      setSesion(null);
+      reiniciarDB(COLECCIONES_PRIVADAS);
+    };
+    window.addEventListener(EVENTO_SESION_EXPIRADA, alExpirar);
+    return () => window.removeEventListener(EVENTO_SESION_EXPIRADA, alExpirar);
+  }, []);
+
+  // Al abrir la aplicación con una sesión guardada, se actualizan los datos del usuario desde el backend.
+  useEffect(() => {
+    if (!leerSesion()) return;
+    api
+      .get('/auth/me')
+      .then(({ data }) => {
+        const actual = leerSesion();
+        if (!actual) return;
+        const nueva = { ...actual, usuario: desdeApi.usuarios(data) };
+        guardarSesion(nueva);
+        setSesion(nueva);
+      })
+      .catch(() => {
+        // sin conexión: se mantiene la sesión guardada; un 401 ya la cerró en el interceptor
+      });
+  }, []);
+
+  const iniciarSesion = useCallback(
+    async (correo, password) => {
+      try {
+        const { data } = await api.post('/auth/login', { correo: String(correo).trim(), password });
+        return { ok: true, usuario: abrirSesion(data) };
+      } catch (error) {
+        return { ok: false, error: mensajeDeError(error, 'Correo o contraseña incorrectos.') };
+      }
+    },
+    [abrirSesion],
+  );
+
+  const registrar = useCallback(
+    async (datos) => {
+      try {
+        const { data } = await api.post('/auth/registro', { ...datos, correo: String(datos.correo).trim().toLowerCase() });
+        return { ok: true, usuario: abrirSesion(data) };
+      } catch (error) {
+        return { ok: false, error: mensajeDeError(error, 'No se pudo crear la cuenta.') };
+      }
+    },
+    [abrirSesion],
+  );
+
+  /** Guarda los cambios del propio perfil. Lanza un error si el backend los rechaza. */
+  const actualizarPerfil = useCallback(
+    async (cambios) => {
+      if (!usuario) return null;
+      const { data } = await api.put('/usuarios/me', { ...usuario, ...cambios });
+      const actualizado = desdeApi.usuarios(data);
+      const nueva = { ...leerSesion(), usuario: actualizado };
+      guardarSesion(nueva);
+      setSesion(nueva);
+      if (usuario.rol === 'admin') guardarEnCache('usuarios', actualizado);
+      return actualizado;
+    },
+    [usuario],
+  );
 
   const valor = useMemo(
     () => ({

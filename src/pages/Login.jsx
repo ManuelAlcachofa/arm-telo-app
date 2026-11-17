@@ -17,7 +17,7 @@ export default function Login() {
 
   const cambiar = (campo) => (e) => setDatos((d) => ({ ...d, [campo]: e.target.value }));
 
-  const enviar = (evento) => {
+  const enviar = async (evento) => {
     evento.preventDefault();
     const nuevos = {
       correo: validarEmail(datos.correo),
@@ -27,7 +27,7 @@ export default function Login() {
     setAviso('');
     if (!sinErrores(nuevos)) return;
 
-    const resultado = iniciarSesion(datos.correo, datos.password);
+    const resultado = await iniciarSesion(datos.correo, datos.password);
     if (!resultado.ok) {
       setAviso(resultado.error);
       return;

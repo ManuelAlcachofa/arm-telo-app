@@ -44,7 +44,7 @@ export default function Registro() {
 
   const alSalir = (campo) => () => setErrores((e) => ({ ...e, [campo]: validarRegistro(datos)[campo] }));
 
-  const enviar = (evento) => {
+  const enviar = async (evento) => {
     evento.preventDefault();
     const nuevos = validarRegistro(datos);
     setErrores(nuevos);
@@ -52,7 +52,7 @@ export default function Registro() {
     if (!sinErrores(nuevos)) return;
 
     const { confirmar, ...registro } = datos;
-    const resultado = registrar({ ...registro, nombre: registro.nombre.trim(), apellidos: registro.apellidos.trim() });
+    const resultado = await registrar({ ...registro, nombre: registro.nombre.trim(), apellidos: registro.apellidos.trim() });
     if (!resultado.ok) {
       setAviso(resultado.error);
       return;

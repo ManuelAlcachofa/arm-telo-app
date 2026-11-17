@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import Alerta from '../../components/Alerta.jsx';
 import Boton from '../../components/Boton.jsx';
 import CampoFormulario from '../../components/CampoFormulario.jsx';
 import EstadoVacio from '../../components/EstadoVacio.jsx';
 import { actualizar, crear, obtener } from '../../data/db.js';
 import { useColeccion } from '../../data/useColeccion.js';
+import { mensajeDeError } from '../../services/api.js';
 import { sinErrores, validarNumeroPositivo, validarRequerido } from '../../utils/validaciones.js';
 
 export function validarProducto(d) {
@@ -49,6 +51,7 @@ export default function AdminProductoForm() {
   const existente = id ? obtener('productos', id) : null;
   const [datos, setDatos] = useState(existente ? { ...VACIO, ...existente } : VACIO);
   const [errores, setErrores] = useState({});
+  const [aviso, setAviso] = useState('');
 
   if (id && !existente) {
     return (
@@ -62,8 +65,9 @@ export default function AdminProductoForm() {
 
   const cambiar = (campo) => (e) => setDatos((d) => ({ ...d, [campo]: e.target.value }));
 
-  const guardar = (evento) => {
+  const guardar = async (evento) => {
     evento.preventDefault();
+    setAviso('');
     const nuevos = validarProducto(datos);
     setErrores(nuevos);
     if (!sinErrores(nuevos)) return;
@@ -79,8 +83,13 @@ export default function AdminProductoForm() {
       stockCritico: Number(datos.stockCritico),
       imagen: datos.imagen.trim(),
     };
-    if (existente) actualizar('productos', existente.id, registro);
-    else crear('productos', registro);
+    try {
+      if (existente) await actualizar('productos', existente.id, registro);
+      else await crear('productos', registro);
+    } catch (error) {
+      setAviso(mensajeDeError(error, 'No se pudo guardar el producto.'));
+      return;
+    }
     navegar('/admin/productos');
   };
 
@@ -90,6 +99,7 @@ export default function AdminProductoForm() {
         ← Volver a productos
       </Link>
       <h1 className="h3 mt-2 mb-3">{existente ? 'Editar producto' : 'Nuevo producto'}</h1>
+      <Alerta mensaje={aviso} />
       <form onSubmit={guardar} noValidate className="card p-3 p-md-4">
         <div className="row">
           <div className="col-md-8">

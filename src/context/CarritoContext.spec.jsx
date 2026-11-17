@@ -1,6 +1,6 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { carritoReducer, useCarrito } from './CarritoContext.jsx';
-import { crearProducto, limpiarTodo, renderizarConApp } from '../test/ayudas.jsx';
+import { crearProducto, esperarQue, limpiarTodo, renderizarConApp } from '../test/ayudas.jsx';
 
 describe('carritoReducer', () => {
   it('agrega un producto nuevo respetando el stock máximo', () => {
@@ -46,11 +46,13 @@ describe('CarritoProvider', () => {
 
   beforeEach(limpiarTodo);
 
-  it('calcula el total y la cantidad al agregar productos', () => {
+  it('calcula el total y la cantidad al agregar productos', async () => {
     const producto = crearProducto({ precio: 1000, precioOferta: 900, stock: 5 });
     renderizarConApp(<Sonda producto={producto} />);
     fireEvent.click(screen.getByText('sumar'));
     fireEvent.click(screen.getByText('sumar'));
+    // Los productos del carrito se toman del catálogo que llega desde el backend.
+    await esperarQue(() => screen.getByTestId('resumen').textContent.startsWith('2 unidades'));
     expect(screen.getByTestId('resumen').textContent).toBe('2 unidades, total 1800, líneas 1');
   });
 
@@ -63,10 +65,10 @@ describe('CarritoProvider', () => {
     expect(JSON.parse(window.localStorage.getItem('armatelo:carrito'))).toEqual([]);
   });
 
-  it('no deja agregar un producto con el stock en blanco', () => {
+  it('no deja agregar un producto con el stock en blanco', async () => {
     const producto = crearProducto({ stock: '' });
     renderizarConApp(<Sonda producto={producto} />);
     fireEvent.click(screen.getByText('sumar'));
-    expect(screen.getByTestId('resumen').textContent).toContain('0 unidades');
+    await esperarQue(() => screen.getByTestId('resumen').textContent.includes('0 unidades'));
   });
 });

@@ -4,6 +4,7 @@ import Boton from '../components/Boton.jsx';
 import CampoFormulario from '../components/CampoFormulario.jsx';
 import Pagina from '../components/Pagina.jsx';
 import { crear } from '../data/db.js';
+import { mensajeDeError } from '../services/api.js';
 import { sinErrores, validarEmail, validarRequerido } from '../utils/validaciones.js';
 
 const VACIO = { nombre: '', correo: '', asunto: '', mensaje: '' };
@@ -12,13 +13,14 @@ export default function Contacto() {
   const [datos, setDatos] = useState(VACIO);
   const [errores, setErrores] = useState({});
   const [enviado, setEnviado] = useState(false);
+  const [aviso, setAviso] = useState('');
 
   const cambiar = (campo) => (e) => {
     setEnviado(false);
     setDatos((d) => ({ ...d, [campo]: e.target.value }));
   };
 
-  const enviar = (evento) => {
+  const enviar = async (evento) => {
     evento.preventDefault();
     const nuevos = {
       nombre: validarRequerido(datos.nombre, 'el nombre'),
@@ -28,7 +30,13 @@ export default function Contacto() {
     };
     setErrores(nuevos);
     if (!sinErrores(nuevos)) return;
-    crear('mensajes', { ...datos, fecha: new Date().toISOString() });
+    setAviso('');
+    try {
+      await crear('mensajes', { ...datos, fecha: new Date().toISOString() });
+    } catch (error) {
+      setAviso(mensajeDeError(error, 'No pudimos enviar tu mensaje.'));
+      return;
+    }
     setDatos(VACIO);
     setEnviado(true);
   };
@@ -36,6 +44,7 @@ export default function Contacto() {
   return (
     <Pagina titulo="Contacto" subtitulo="Escríbenos y te responderemos a la brevedad." ancho="contenedor-formulario">
       <Alerta tipo="success" mensaje={enviado ? '¡Gracias! Recibimos tu mensaje.' : ''} />
+      <Alerta mensaje={aviso} />
       <form onSubmit={enviar} noValidate className="card p-4">
         <CampoFormulario id="nombre" etiqueta="Nombre" requerido valor={datos.nombre} onChange={cambiar('nombre')} error={errores.nombre} />
         <CampoFormulario id="correo" etiqueta="Correo electrónico" tipo="email" requerido valor={datos.correo} onChange={cambiar('correo')} error={errores.correo} />

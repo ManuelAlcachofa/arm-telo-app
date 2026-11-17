@@ -1,6 +1,10 @@
 // Puente para correr con Vitest las mismas pruebas escritas con la API de Jasmine.
 // Karma usa Jasmine de verdad; este archivo solo se carga cuando se ejecuta `npm run test:vitest`.
 import { expect, vi } from 'vitest';
+import { instalarServidorFalso } from './servidorFalso.js';
+
+// Las pruebas no llaman al backend real: axios responde con un backend falso en memoria.
+instalarServidorFalso();
 
 expect.extend({
   toBeTrue(recibido) {

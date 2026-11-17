@@ -1,5 +1,9 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import CargaDatos from '../../components/CargaDatos.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+
+// El panel usa datos de catalogo-service, auth-service y orden-service.
+const COLECCIONES_ADMIN = ['productos', 'categorias', 'usuarios', 'ordenes'];
 
 const ENLACES = [
   { a: '/admin', texto: 'Dashboard', icono: 'bi-speedometer2', exacto: true },
@@ -53,7 +57,9 @@ export default function AdminLayout() {
         <small className="text-secondary d-none d-lg-block mt-4">Sesión: {usuario?.correo}</small>
       </aside>
       <main className="admin-contenido flex-grow-1 p-3 p-md-4">
-        <Outlet />
+        <CargaDatos colecciones={COLECCIONES_ADMIN}>
+          <Outlet />
+        </CargaDatos>
       </main>
     </div>
   );
